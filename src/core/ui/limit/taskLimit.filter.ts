@@ -1,10 +1,16 @@
+import {GanttTask} from '../../logic/task/task.factory';
+
+export interface IFilterGanttTaskLimit {
+  (array: GanttTask[], gantt: any): GanttTask[];
+}
+
 export default function () {
   'ngInject';
 
   // Returns only the tasks which are visible on the screen
   // Use the task width and position to decide if a task is still visible
 
-  return function (input, gantt) {
+  return function (input: GanttTask[], gantt: any): GanttTask[] { // TODO: type
     let firstColumn = gantt.columnsManager.getFirstColumn();
     let lastColumn = gantt.columnsManager.getLastColumn();
 
@@ -12,7 +18,7 @@ export default function () {
       let fromDate = firstColumn.date;
       let toDate = lastColumn.endDate;
 
-      let res = [];
+      let res: GanttTask[] = [];
 
       let scrollLeft = gantt.scroll.getScrollLeft();
       let scrollContainerWidth = gantt.getWidth() - gantt.side.getWidth();
@@ -45,7 +51,7 @@ export default function () {
 
       return res;
     } else {
-      return input.splice();
+      return input.splice(0);
     }
   };
 }

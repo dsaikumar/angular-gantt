@@ -1,10 +1,36 @@
-import angular from 'angular';
+import {IFilterService, IScope} from 'angular';
 
 import moment from 'moment';
+import {GanttTask, GanttTaskModel} from '../task/task.factory';
 
-export default function (GanttTask, $filter) {
-  'ngInject';
-  let Row = function (rowsManager, model) {
+import {IGanttFilterService} from '../../../index';
+import * as angular from 'angular';
+
+export class GanttRowModel {
+  id: string;
+
+  tasks: GanttTaskModel[];
+}
+
+export class GanttRow {
+  static GanttTask: GanttTask;
+  static $filter: IGanttFilterService;
+
+  rowsManager: any; // TODO: type
+
+  model: GanttRowModel;
+
+  from: moment.Moment;
+  to: moment.Moment;
+
+  tasksMap: { [id: string]: GanttTask };
+  tasks: GanttTask[];
+  filteredTasks: GanttTask[];
+  visibleTasks: GanttTask[];
+
+  $scope: IScope;
+
+  constructor(rowsManager: any, model: GanttRowModel) {
     this.rowsManager = rowsManager;
     this.model = model;
 
@@ -17,7 +43,7 @@ export default function (GanttTask, $filter) {
     this.visibleTasks = [];
   };
 
-  Row.prototype.addTaskImpl = function (task, viewOnly) {
+  addTaskImpl(task: GanttTask, viewOnly: boolean = false) {
     this.tasksMap[task.model.id] = task;
     this.tasks.push(task);
 
@@ -29,11 +55,10 @@ export default function (GanttTask, $filter) {
         this.model.tasks.push(task.model);
       }
     }
-
   };
 
-  // Adds a task to a specific row. Merges the task if there is already one with the same id
-  Row.prototype.addTask = function (taskModel, viewOnly) {
+// Adds a task to a specific row. Merges the task if there is already one with the same id
+  addTask(taskModel: GanttTaskModel, viewOnly: boolean = false) {
     // Copy to new task (add) or merge with existing (update)
     let task;
     let isUpdate = false;
@@ -65,8 +90,8 @@ export default function (GanttTask, $filter) {
     return task;
   };
 
-  // Removes the task from the existing row and adds it to he current one
-  Row.prototype.moveTaskToRow = function (task, viewOnly) {
+// Removes the task from the existing row and adds it to he current one
+  moveTaskToRow(task: GanttTask, viewOnly: boolean = false) {
     this.rowsManager.gantt.api.tasks.raise.beforeViewRowChange(task, this);
     if (!viewOnly) {
       this.rowsManager.gantt.api.tasks.raise.beforeRowChange(task, this);
@@ -93,7 +118,7 @@ export default function (GanttTask, $filter) {
     }
   };
 
-  Row.prototype.updateVisibleTasks = function () {
+  updateVisibleTasks() {
     let filterTask = this.rowsManager.gantt.options.value('filterTask');
     if (filterTask) {
       if (typeof(filterTask) === 'object') {
@@ -107,28 +132,34 @@ export default function (GanttTask, $filter) {
         };
       }
 
-      this.filteredTasks = $filter('filter')(this.tasks, filterTask, filterTaskComparator);
+      this.filteredTasks = GanttRow.$filter('filter')(this.tasks, filterTask, filterTaskComparator);
     } else {
       this.filteredTasks = this.tasks.slice(0);
     }
 
     let limitThreshold = this.rowsManager.gantt.options.value('taskLimitThreshold');
     if (limitThreshold === undefined || limitThreshold > 0 && this.filteredTasks.length >= limitThreshold) {
-      this.visibleTasks = $filter('ganttTaskLimit')(this.filteredTasks, this.rowsManager.gantt);
+      this.visibleTasks = GanttRow.$filter('ganttTaskLimit')(this.filteredTasks, this.rowsManager.gantt);
     } else {
       this.visibleTasks = this.filteredTasks;
     }
   };
 
-  Row.prototype.updateTasksPosAndSize = function () {
-    // tslint:disable:one-variable-per-declaration
-    for (let j = 0, k = this.tasks.length; j < k; j++) {
-      this.tasks[j].updatePosAndSize();
+  updateTasksPosAndSize() {
+    for (let task of this.tasks) {
+      task.updatePosAndSize();
     }
   };
 
-  // Remove the specified task from the row
-  Row.prototype.removeTask = function (taskId, viewOnly, silent) {
+  /**
+   * Remove the specified task from the row
+   *
+   * @param taskId
+   * @param viewOnly
+   * @param silent
+   * @returns {any}
+   */
+  removeTask(taskId: string, viewOnly: boolean, silent: boolean) {
     if (taskId in this.tasksMap) {
       let removedTask = this.tasksMap[taskId];
       let task;
@@ -140,7 +171,7 @@ export default function (GanttTask, $filter) {
           this.tasks.splice(i, 1); // Remove from array
 
           // Update earliest or latest date info as this may change
-          if (this.from - task.model.from === 0 || this.to - task.model.to === 0) {
+          if (this.from && this.from.isSame(moment(task.model.from)) || this.to && this.to.isSame(moment(task.model.to))) {
             this.setFromTo();
           }
 
@@ -183,7 +214,7 @@ export default function (GanttTask, $filter) {
     }
   };
 
-  Row.prototype.removeAllTasks = function () {
+  removeAllTasks() {
     this.from = undefined;
     this.to = undefined;
 
@@ -193,20 +224,22 @@ export default function (GanttTask, $filter) {
     this.visibleTasks = [];
   };
 
-  // Calculate the earliest from and latest to date of all tasks in a row
-  Row.prototype.setFromTo = function () {
+  /**
+   * Calculate the earliest from and latest to date of all tasks in a row
+   */
+  setFromTo() {
     this.from = undefined;
     this.to = undefined;
-    for (let j = 0, k = this.tasks.length; j < k; j++) {
-      this.setFromToByTask(this.tasks[j]);
+    for (let task of this.tasks) {
+      this.setFromToByTask(task);
     }
   };
 
-  Row.prototype.setFromToByTask = function (task) {
+  setFromToByTask(task) {
     this.setFromToByValues(task.model.from, task.model.to);
   };
 
-  Row.prototype.setFromToByValues = function (from, to) {
+  setFromToByValues(from, to) {
     if (from !== undefined) {
       if (this.from === undefined) {
         this.from = moment(from);
@@ -222,22 +255,27 @@ export default function (GanttTask, $filter) {
         this.to = moment(to);
       }
     }
-
   };
 
-  Row.prototype.sortTasks = function () {
+  sortTasks = function () {
     this.tasks.sort(function (t1, t2) {
       return t1.left - t2.left;
     });
   };
 
-  Row.prototype.clone = function () {
-    let clone = new Row(this.rowsManager, angular.copy(this));
-    for (let i = 0, l = this.tasks.length; i < l; i++) {
-      clone.addTask(this.tasks[i].model);
+  clone() {
+    let clone = new GanttRow(this.rowsManager, angular.copy(this.model));
+    for (let task of this.tasks) {
+      clone.addTask(task.model);
     }
     return clone;
   };
+}
 
-  return Row;
+export default function (GanttTask: any, $filter: IGanttFilterService) {
+  'ngInject';
+
+  GanttRow.GanttTask = GanttTask;
+  GanttRow.$filter = $filter;
+  return GanttRow;
 }

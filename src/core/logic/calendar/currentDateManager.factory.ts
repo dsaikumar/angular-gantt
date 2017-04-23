@@ -1,10 +1,14 @@
 import moment from 'moment';
 
-export default function () {
-  'ngInject';
-  let GanttCurrentDateManager = function (gantt) {
-    let self = this;
+import {GanttColumn} from '../column/column.factory';
 
+export class GanttCurrentDateManager {
+  private gantt: any;
+  private position: number;
+  private date: any;
+  private currentDateColumn: GanttColumn;
+
+  constructor (gantt: any) {
     this.gantt = gantt;
 
     this.date = undefined;
@@ -15,21 +19,23 @@ export default function () {
       return moment.isMoment(d) ? d.unix() : d;
     };
 
-    this.gantt.$scope.$watchGroup(['currentDate', 'simplifyMoment(currentDateValue)'], function (newValues, oldValues) {
+    this.gantt.$scope.$watchGroup(['currentDate', 'simplifyMoment(currentDateValue)'], (newValues, oldValues) => {
       if (newValues !== oldValues) {
-        self.setCurrentDate(self.gantt.options.value('currentDateValue'));
+        this.setCurrentDate(this.gantt.options.value('currentDateValue'));
       }
     });
   };
 
-  GanttCurrentDateManager.prototype.setCurrentDate = function (currentDate) {
+  setCurrentDate (currentDate) {
     this.date = currentDate;
+
     let oldColumn = this.currentDateColumn;
     let newColumn;
 
     if (this.date !== undefined && this.gantt.options.value('currentDate') === 'column') {
       newColumn = this.gantt.columnsManager.getColumnByDate(this.date, true);
     }
+
     this.currentDateColumn = newColumn;
 
     if (oldColumn !== newColumn) {
@@ -45,5 +51,10 @@ export default function () {
 
     this.position = this.gantt.getPositionByDate(this.date, true);
   };
+}
+
+export default function () {
+  'ngInject';
+
   return GanttCurrentDateManager;
 }

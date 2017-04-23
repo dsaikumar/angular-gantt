@@ -1,9 +1,40 @@
-import angular from 'angular';
+import angular, {IDocumentService, ITimeoutService} from 'angular';
 
 import moment from 'moment';
 
-export default function (GanttApi, GanttOptions, GanttCalendar, GanttScroll, GanttBody, GanttRowHeader, GanttHeader, GanttSide, GanttObjectModel, GanttRowsManager, GanttColumnsManager, GanttTimespansManager, GanttCurrentDateManager, ganttArrays, $document, $timeout) {
+import {GanttApi} from './api/api.factory';
+import {GanttOptions} from './api/options.factory';
+import {GanttCalendar} from './calendar/calendar.factory';
+import {GanttCurrentDateManager} from './calendar/currentDateManager.factory';
+import {GanttObjectModel} from './model/objectModel.factory';
+import {RowsManager} from './row/rowsManager.factory';
+import {GanttColumnsManager} from './column/columnsManager.factory';
+import {GanttTimespansManager} from './timespan/timespansManager.factory';
+import GanttArrays from './util/arrays.service';
+import {GanttScroll} from './template/scroll.factory';
+import {GanttBody} from './template/body.factory';
+import {GanttHeader} from './template/header.factory';
+import {GanttSide} from './template/side.factory';
+
+export default function (
+  GanttApi: { new(gantt: any): GanttApi },
+  GanttOptions: {new(values: { [option: string]: any; },
+  defaultValues: { [option: string]: any; }): GanttOptions},
+  GanttCalendar: {new(): GanttCalendar},
+  GanttScroll: {new(gantt: any): GanttScroll},
+  GanttBody: {new(gantt: any): GanttBody},
+  GanttHeader: {new(gantt: any): GanttHeader},
+  GanttSide: {new(gantt: any): GanttSide},
+  GanttObjectModel: {new(gantt: any): GanttObjectModel},
+  GanttRowsManager: {new(gantt: any): RowsManager},
+  GanttColumnsManager: {new(gantt: any): GanttColumnsManager},
+  GanttTimespansManager: {new(gantt: any): GanttTimespansManager},
+  GanttCurrentDateManager: {new(gantt: any): GanttCurrentDateManager},
+  ganttArrays: GanttArrays,
+  $document: IDocumentService,
+  $timeout: ITimeoutService) {
   'ngInject';
+
   // Gantt logic. Manages the columns, rows and sorting functionality.
   let Gantt = function ($scope, $element) {
     let self = this;
@@ -59,7 +90,7 @@ export default function (GanttApi, GanttOptions, GanttCalendar, GanttScroll, Gan
     this.api.registerMethod('data', 'clear', this.clearData, this);
     this.api.registerMethod('data', 'get', this.getData, this);
 
-    this.calendar = new GanttCalendar(this);
+    this.calendar = new GanttCalendar();
     this.calendar.registerTimeFrames(this.options.value('timeFrames'));
     this.calendar.registerDateFrames(this.options.value('dateFrames'));
 
